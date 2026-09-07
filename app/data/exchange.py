@@ -1,11 +1,15 @@
-import requests
+from datetime import datetime, timezone
 
+import httpcore
+
+from app.data.http_transport import create_connection_pool
 from app.data.models import Candle
 
 
 class ExchangeClient:
 
-    BASE_URL = "https://api.binance.com"
+    def __init__(self):
+        self.pool = create_connection_pool()
 
     def get_candles(
         self,
@@ -14,36 +18,61 @@ class ExchangeClient:
         limit: int = 100,
     ) -> list[Candle]:
 
-        url = f"{self.BASE_URL}/api/v3/klines"
-
-        params = {
-            "symbol": symbol,
-            "interval": interval,
-            "limit": limit,
-        }
-
-        response = requests.get(
-            url,
-            params=params,
-            timeout=10,
+        request = httpcore.Request(
+            method=b"GET",
+            url=httpcore.URL(
+    scheme=b"https",
+    host=b"api.binance.com",
+    port=443,
+    target=(
+        f"/api/v3/klines"
+        f"?symbol={symbol}"
+        f"&interval={interval}"
+        f"&limit={limit}"
+    ).encode(),
+),
+            headers=[
+                (b"host", b"api.binance.com"),
+            ],
+            content=None,
+            extensions={},
         )
 
-        response.raise_for_status()
+        response = self.pool.handle_request(request)
 
-        data = response.json()
+        try:
+            if response.status != 200:
+                raise RuntimeError(
+                    f"Binance API returned status {response.status}"
+                )
+
+            data = response.read()
+
+        finally:
+            response.close()
+
+        import json
+
+        data = json.loads(data)
 
         candles = []
 
         for item in data:
-            candle = Candle(
-                timestamp=item[0],
-                open=float(item[1]),
-                high=float(item[2]),
-                low=float(item[3]),
-                close=float(item[4]),
-                volume=float(item[5]),
+            candles.append(
+                Candle(
+                    timestamp=datetime.fromtimestamp(
+                        item[0] / 1000,
+                        tz=timezone.utc,
+                    ),
+                    open=float(item[1]),
+                    high=float(item[2]),
+                    low=float(item[3]),
+                    close=float(item[4]),
+                    volume=float(item[5]),
+                )
             )
 
-            candles.append(candle)
-
         return candles
+
+    def close(self):
+        self.pool.close()
