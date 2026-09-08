@@ -230,3 +230,179 @@ ai_trading_system/
 ├── requirements.txt
 └── README.md
 
+
+Milestone 2 — Time-Series Gap Detection
+
+Integration completed
+
+Added CandleGapDetector
+Detects missing intervals without modifying the original data
+Supports arbitrary candle intervals through timedelta
+
+Key project decisions
+
+Missing data is different from invalid data.
+Gaps are detected, not silently repaired.
+No synthetic candles are created at the data-ingestion layer.
+The interval is supplied explicitly rather than hardcoded to 1 minute.
+Gap information will later be available to the backtester and AI feature pipeline.
+Updated architecture
+Raw Market Data
+      │
+      ▼
+    Candle
+      │
+      ▼
+CandleValidator
+      │
+      ▼
+Timestamp Integrity
+      │
+      ▼
+CandleGapDetector
+      │
+      ├── valid continuous data
+      │
+      └── gap information
+                │
+                ▼
+        Data Quality Metadata
+                │
+        ┌───────┼────────┐
+        ▼       ▼        ▼
+    Indicators  AI    Backtester
+
+
+
+    Milestone 3 — MarketData + Gap Detection Integration
+
+Integrated
+
+Candle
+  ↓
+CandleValidator
+  ↓
+MarketData
+  ↓
+CandleGapDetector
+  ↓
+Data-quality information
+
+Key project decision:
+The market-data layer will detect data problems but will not automatically repair them.
+
+That is important for a trading system. We don't want the system inventing a candle because one is missing. Later, another component can decide whether a gap means:
+
+ignore the period,
+request the missing data,
+invalidate a backtest segment,
+reduce confidence,
+or block trading temporarily.
+Next milestone
+
+We should now move from in-memory market data → persistent market data.
+
+I recommend SQLite first because:
+
+Python-only (sqlite3 is built in)
+no separate database server
+reliable transactions
+excellent for our development/backtesting stage
+easy to migrate to PostgreSQL later if the system grows
+
+The next architecture will become:
+
+Exchange / Historical Data
+          ↓
+    Exchange Adapter
+          ↓
+   Candle Validation
+          ↓
+      SQLite DB
+          ↓
+     MarketData
+          ↓
+   Gap / Quality Checks
+          ↓
+     Backtesting
+          ↓
+       Strategies
+          ↓
+     Risk Manager
+          ↓
+      Execution
+
+
+      ### SQLite Database
+
+I use SqLite database because its built into python and gives an advantage 
+
+
+
+SQLite's REAL type is appropriate for our initial implementation.
+
+Later, when we get into financial precision, we'll need to revisit how we represent prices and quantities. We should not blindly rely on binary floating-point for actual order accounting.
+
+That's something we'll address before live trading.
+
+Milestone 4A — Persistent Read/Write
+
+Integrated:
+Candle ↔ SQLite conversion, candle persistence, chronological retrieval, symbol/timeframe filtering.
+
+Key decision:
+The database layer returns domain objects (Candle) rather than raw database rows.
+
+That keeps SQL concerns inside the database layer and lets the rest of our trading system work with clean Python objects.
+
+
+Milestone 4B — Documentation
+
+Integration
+
+SQLite
+ ├── Symbol isolation
+ ├── Timeframe isolation
+ ├── Timestamp uniqueness
+ └── Chronological retrieval
+
+Key project decision:
+The database itself must enforce fundamental data-integrity rules wherever possible. We don't rely entirely on Python application logic.
+
+Why:
+Our trading engine may eventually have several data-ingestion processes. If two processes accidentally attempt to store the same candle, the database constraint protects us.
+
+Current foundation:
+
+                 Candle
+                    │
+                    ▼
+             CandleValidator
+                    │
+                    ▼
+               MarketData
+                    │
+                    ▼
+             MarketDatabase
+                    │
+                    ▼
+                 SQLite
+
+
+                 Milestone 4C — Persistent MarketData Integration
+
+Integrated:
+
+MarketData ↔ MarketDatabase ↔ SQLite
+
+Key decision: MarketData works with Candle objects; database-specific SQL remains inside MarketDatabase.
+
+What this enables:
+
+Historical data
+      ↓
+SQLite
+      ↓
+MarketData
+      ↓
+Backtesting
