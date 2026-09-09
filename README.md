@@ -406,3 +406,13 @@ SQLite
 MarketData
       ↓
 Backtesting
+
+### Key project decision:
+
+The database is the source of persistent truth, while MarketData provides the in-memory working layer. We never silently allow RAM and persistent storage to diverge.
+
+###  Key architectural decision
+
+Historical data retrieval must happen at the database/query layer rather than loading the entire dataset into memory and filtering it in Python.
+
+That's important because our eventual AI trading system may process millions of candles.

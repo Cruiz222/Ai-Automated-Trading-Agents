@@ -80,26 +80,46 @@ class MarketDatabase:
         self,
         symbol: str,
         interval: str,
-    ) -> list[Candle]:
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int | None = None,
+    ):
+
+        query = """
+        SELECT
+            timestamp,
+            open,
+            high,
+            low,
+            close,
+            volume
+        FROM candles
+        WHERE symbol = ?
+          AND interval = ?
+        """
+
+        parameters = [symbol, interval]
+
+        if start is not None:
+            query += " AND timestamp >= ?"
+            parameters.append(start.isoformat())
+
+        if end is not None:
+            query += " AND timestamp <= ?"
+            parameters.append(end.isoformat())
+
+        query += " ORDER BY timestamp ASC"
+
+        if limit is not None:
+            if limit < 1:
+                raise ValueError("Limit must be greater than 0")
+
+            query += " LIMIT ?"
+            parameters.append(limit)
 
         cursor = self.connection.execute(
-            """
-            SELECT
-                timestamp,
-                open,
-                high,
-                low,
-                close,
-                volume
-            FROM candles
-            WHERE symbol = ?
-              AND interval = ?
-            ORDER BY timestamp ASC
-            """,
-            (
-                symbol,
-                interval,
-            ),
+            query,
+            parameters,
         )
 
         rows = cursor.fetchall()
@@ -122,3 +142,55 @@ class MarketDatabase:
 
     def close(self) -> None:
         self.connection.close()
+
+    def load_latest_candles(
+        self,
+        symbol: str,
+        interval: str,
+        limit: int,
+    ) -> list[Candle]:
+
+        if limit < 1:
+            raise ValueError("Limit must be greater than 0")
+
+        cursor = self.connection.execute(
+            """
+            SELECT
+                timestamp,
+                open,
+                high,
+                low,
+                close,
+                volume
+            FROM candles
+            WHERE symbol = ?
+              AND interval = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (
+                symbol,
+                interval,
+                limit,
+            ),
+        )
+
+        rows = cursor.fetchall()
+
+        candles = []
+
+        for row in rows:
+            candles.append(
+                Candle(
+                    timestamp=datetime.fromisoformat(row[0]),
+                    open=row[1],
+                    high=row[2],
+                    low=row[3],
+                    close=row[4],
+                    volume=row[5],
+                )
+            )
+
+        candles.reverse()
+
+        return candles

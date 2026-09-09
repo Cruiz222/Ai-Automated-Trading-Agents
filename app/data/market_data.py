@@ -108,3 +108,19 @@ class MarketData:
             self.candles,
             interval,
         )
+
+    def load_latest(self, count: int = 1) -> list[Candle]:
+
+        if self.database is None:
+            raise ValueError("Database is not configured")
+
+        if self.symbol is None or self.interval is None:
+            raise ValueError(
+             "Symbol and interval are required when using a database"
+        )
+
+    return self.database.load_latest_candles(
+        symbol=self.symbol,
+        interval=self.interval,
+        limit=count,
+    )    
