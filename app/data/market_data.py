@@ -116,11 +116,11 @@ class MarketData:
 
         if self.symbol is None or self.interval is None:
             raise ValueError(
-             "Symbol and interval are required when using a database"
+            "Symbol and interval are required when using a database"
         )
 
-    return self.database.load_latest_candles(
+        return self.database.load_latest_candles(
         symbol=self.symbol,
         interval=self.interval,
         limit=count,
-    )    
+    )

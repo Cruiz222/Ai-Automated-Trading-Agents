@@ -416,3 +416,37 @@ The database is the source of persistent truth, while MarketData provides the in
 Historical data retrieval must happen at the database/query layer rather than loading the entire dataset into memory and filtering it in Python.
 
 That's important because our eventual AI trading system may process millions of candles.
+
+
+Current foundation
+
+We have built:
+
+✅ Candle data model
+✅ OHLCV validation
+✅ Chronological validation
+✅ Gap detection
+✅ SQLite persistence
+✅ Duplicate protection
+✅ Database recovery
+✅ Time-range queries
+✅ Limited queries
+✅ Latest-N queries
+✅ MarketData abstraction over the database
+
+
+Binance ─────┐
+Kraken ──────┤
+CSV ─────────┼──→ Ingestion Layer → Database
+WebSocket ───┤
+Other API ───┘
+
+We now have:
+
+✅ Candle validation
+✅ Chronological validation
+✅ CSV loading
+✅ Batch database insertion
+✅ Duplicate protection
+✅ Idempotent ingestion
+✅ Explicit rollback on database failure

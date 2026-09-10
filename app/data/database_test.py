@@ -128,8 +128,29 @@ except DuplicateCandleError as error:
     print("Duplicate rejected:")
     print(error)
 
-# ============================================================
-# Close database
-# ============================================================
+
+print("\nTesting idempotent batch insertion:")
+
+inserted = database.save_candles(
+    symbol="BTCUSDT",
+    interval="1m",
+    candles=[
+        candle1,
+        candle2,
+    ],
+)
+
+print("New candles inserted:", inserted)
+
+inserted_again = database.save_candles(
+    symbol="BTCUSDT",
+    interval="1m",
+    candles=[
+        candle1,
+        candle2,
+    ],
+)
+
+print("New candles inserted on second attempt:", inserted_again)
 
 database.close()

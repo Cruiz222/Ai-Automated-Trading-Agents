@@ -98,7 +98,7 @@ class MarketDatabase:
           AND interval = ?
         """
 
-        parameters = [symbol, interval]
+        parameters: list[str | int] = [symbol, interval]
 
         if start is not None:
             query += " AND timestamp >= ?"
@@ -194,3 +194,55 @@ class MarketDatabase:
         candles.reverse()
 
         return candles
+
+    def save_candles(
+        self,
+        symbol: str,
+        interval: str,
+        candles: list[Candle],
+    ) -> int:
+
+        if not candles:
+            return 0
+
+        rows = [
+            (
+                symbol,
+                interval,
+                candle.timestamp.isoformat(),
+                candle.open,
+                candle.high,
+                candle.low,
+                candle.close,
+                candle.volume,
+            )
+            for candle in candles
+        ]
+
+        try:
+            cursor = self.connection.executemany(
+                """
+                INSERT INTO candles (
+                    symbol,
+                    interval,
+                    timestamp,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(symbol, interval, timestamp)
+                DO NOTHING
+                """,
+                rows,
+            )
+
+            self.connection.commit()
+
+            return cursor.rowcount
+
+        except Exception:
+            self.connection.rollback()
+            raise
