@@ -1,7 +1,9 @@
 from app.data.models import Candle
 from app.data.validation import CandleValidator
 from app.data.database import MarketDatabase
-
+from datetime import timedelta
+from app.data.gaps import CandleGapDetector
+from app.data.quality import DataQualityReport
 
 class HistoricalDataIngestion:
 
@@ -29,3 +31,31 @@ class HistoricalDataIngestion:
             interval=interval,
             candles=candles,
         )
+
+    @staticmethod
+    def find_gaps(
+        candles: list[Candle],
+        interval: timedelta,
+    ) -> list[tuple[Candle, Candle]]:
+        return CandleGapDetector.find_gaps(
+            candles,
+            interval,
+        )  
+
+    @staticmethod
+    def quality_report(
+        candles: list[Candle],
+        interval: timedelta,
+    ) -> DataQualityReport:
+
+        HistoricalDataIngestion.validate_candles(candles)
+
+        gaps = HistoricalDataIngestion.find_gaps(
+            candles,
+            interval,
+        )
+
+        return DataQualityReport(
+            candle_count=len(candles),
+            gaps=gaps,
+        )      

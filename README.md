@@ -450,3 +450,15 @@ We now have:
 ✅ Duplicate protection
 ✅ Idempotent ingestion
 ✅ Explicit rollback on database failure
+
+
+                HistoricalDataIngestion
+                         │
+             ┌───────────┼───────────┐
+             ↓           ↓           ↓
+          Validate     Ordering     Gap
+           OHLC        timestamps   detection
+             │           │           │
+             └───────────┼───────────┘
+                         ↓
+                     Database
